@@ -3,6 +3,8 @@
 import yfinance as yf
 import matplotlib.pyplot as plt
 import pandas as pd
+import json
+import time
 
 def getStockPrice(name):
 	ticker = yf.Ticker(name)
@@ -15,10 +17,31 @@ def downloadStockHistory(name, period = "1mo", interval = "1h"):
 	his.to_pickle("histories/"+name+".pkl")
 	return his
 
-def loadStockHistory(stockName):
+def getStockHistory(stockName):
 	return pd.read_pickle("histories/"+stockName+".pkl")
 
+def updateStockHistory(stockName, period, interval, maxOutdated = 3600): # maxOutdated = 0 for force download
+	with open("chacheData.json", "r") as f:
+		chacheData = json.loads(f.read())
+
+		try: # will error if the stock has never been downloaded before
+			if abs(chacheData[stockName]["time"] - time.time()) < maxOutdated and chacheData[stockName]["interval"] == interval and chacheData[stockName]["period"] == period: # if the exact data is chached
+				print("used chached")
+				return getStockHistory(stockName)
+			else:
+				print("updated old data")
+				chacheData[stockName] = {"time":time.time(), "interval": interval, "period": period}
+		except:
+			print("got first time")
+			chacheData[stockName] = {"time":time.time(), "interval": interval, "period": period}
+
+	with open("chacheData.json", "w") as f:
+		print(json.dumps(chacheData))
+		f.write(json.dumps(chacheData))
+		
+	return downloadStockHistory(stockName, period, interval)
+
 if __name__ == "__main__":
-	test2 = downloadStockHistory("XRO.AX", "1mo", "1d")
+	test2 = updateStockHistory("XRO.AX", "1mo", "1d")
 	plt.plot(test2["Open"])
 	plt.show()
